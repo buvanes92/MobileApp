@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Leaf Icon in center -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,24C54,24 34,44 34,59C34,70 43,79 54,79C65,79 74,70 74,59C74,44 54,24 54,24ZM54,74C46.8,74 40,67.2 40,59C40,51.8 49,38.8 54,32.8C59,38.8 68,51.8 68,59C68,67.2 61.2,74 54,74Z" />
+    <!-- Water droplet inside leaf -->
+    <path
+        android:fillColor="#80E5FF"
+        android:pathData="M54,48C54,48 48,55 48,59C48,62.3 50.7,65 54,65C57.3,65 60,62.3 60,59C60,55 54,48 54,48Z" />
+</vector>
