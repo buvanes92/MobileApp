@@ -35,25 +35,33 @@ class TelemetryViewModel : ViewModel() {
     private val _isSimulationActive = MutableStateFlow(true)
     val isSimulationActive: StateFlow<Boolean> = _isSimulationActive.asStateFlow()
 
-    // History lists for Analytics Graph
-    private val _voltageHistory = MutableStateFlow<List<Float>>(List(15) { 220f })
-    val voltageHistory: StateFlow<List<Float>> = _voltageHistory.asStateFlow()
+    // 3-Phase Voltage History lists for Analytics Graph
+    private val _voltageRHistory = MutableStateFlow<List<Float>>(List(15) { 220f })
+    val voltageRHistory: StateFlow<List<Float>> = _voltageRHistory.asStateFlow()
+
+    private val _voltageYHistory = MutableStateFlow<List<Float>>(List(15) { 220f })
+    val voltageYHistory: StateFlow<List<Float>> = _voltageYHistory.asStateFlow()
+
+    private val _voltageBHistory = MutableStateFlow<List<Float>>(List(15) { 220f })
+    val voltageBHistory: StateFlow<List<Float>> = _voltageBHistory.asStateFlow()
 
     private val _flowHistory = MutableStateFlow<List<Float>>(List(15) { 0f })
     val flowHistory: StateFlow<List<Float>> = _flowHistory.asStateFlow()
 
     // Simulation injected fault states
-    private var faultLowVoltage = false
-    private var faultHighVoltage = false
-    private var faultBlockedPipe = false
+    private var faultRPhaseCut = false
+    private var faultYPhaseCut = false
+    private var faultBPhaseCut = false
+    private var faultImbalance = false
     private var faultOverload = false
+    private var faultDryRun = false
 
     private var dryRunTicks = 0
     private var simJob: Job? = null
 
     init {
-        addLog("Irrigation Controller Online", LogSeverity.INFO)
-        addLog("GSM Signal: Strong (RSSI -65dBm)", LogSeverity.INFO)
+        addLog("3-Phase Smart Pump Controller Online", LogSeverity.INFO)
+        addLog("GSM Signal: Strong (RSSI -61dBm)", LogSeverity.INFO)
         startSimulation()
     }
 
@@ -73,27 +81,37 @@ class TelemetryViewModel : ViewModel() {
         val currentMotor = _motorState.value
         val currentTelemetry = _telemetry.value
 
-        // 1. Calculate Voltage (normal 220V +/- 3V unless fault injected)
-        val targetVoltage = when {
-            faultLowVoltage -> 165f + Random.nextFloat() * 4f
-            faultHighVoltage -> 258f + Random.nextFloat() * 4f
-            else -> 220f + Random.nextFloat() * 6f - 3f
-        }
+        // 1. Calculate individual Phase Voltages (normal 220V +/- 3V unless phase cuts / imbalance injected)
+        val baseVoltR = if (faultRPhaseCut) 0f else if (faultImbalance) 165f else 220f + Random.nextFloat() * 4f - 2f
+        val baseVoltY = if (faultYPhaseCut) 0f else if (faultImbalance) 232f else 221f + Random.nextFloat() * 4f - 2f
+        val baseVoltB = if (faultBPhaseCut) 0f else if (faultImbalance) 241f else 219f + Random.nextFloat() * 4f - 2f
 
-        // 2. Calculate Current based on Motor State and Load
-        val targetCurrent = if (currentMotor == MotorState.ON) {
+        // 2. Calculate Phase Currents based on Motor State
+        val targetCurrentR = if (currentMotor == MotorState.ON && !faultRPhaseCut) {
             when {
-                faultOverload -> 16.5f + Random.nextFloat() * 1.5f
-                else -> 8.2f + Random.nextFloat() * 0.6f - 0.3f
+                faultOverload -> 16.2f + Random.nextFloat() * 0.8f
+                else -> 8.2f + Random.nextFloat() * 0.4f - 0.2f
             }
-        } else {
-            0f
-        }
+        } else 0f
+
+        val targetCurrentY = if (currentMotor == MotorState.ON && !faultYPhaseCut) {
+            when {
+                faultOverload -> 16.5f + Random.nextFloat() * 0.8f
+                else -> 8.1f + Random.nextFloat() * 0.4f - 0.2f
+            }
+        } else 0f
+
+        val targetCurrentB = if (currentMotor == MotorState.ON && !faultBPhaseCut) {
+            when {
+                faultOverload -> 16.3f + Random.nextFloat() * 0.8f
+                else -> 8.3f + Random.nextFloat() * 0.4f - 0.2f
+            }
+        } else 0f
 
         // 3. Calculate Flow Rate based on Motor & Valve & Blockage
-        val targetFlow = if (currentMotor == MotorState.ON && !faultBlockedPipe) {
+        val targetFlow = if (currentMotor == MotorState.ON && !faultDryRun) {
             val baseFlow = currentTelemetry.valveOpenPercent * 0.35f // max ~35 L/min
-            baseFlow + Random.nextFloat() * 2f - 1f
+            baseFlow + Random.nextFloat() * 1.5f - 0.7f
         } else {
             0f
         }
@@ -108,7 +126,7 @@ class TelemetryViewModel : ViewModel() {
             if (Random.nextInt(100) < 40) tank = (tank - 1).coerceAtLeast(0)
         } else {
             // Natural soil drying out
-            if (Random.nextInt(100) < 15) moisture = (moisture - 1).coerceAtAtLeast(10)
+            if (Random.nextInt(100) < 15) moisture = (moisture - 1).coerceAtLeast(10)
             // Rain/Refill simulator slowly
             if (Random.nextInt(100) < 20) tank = (tank + 1).coerceAtMost(100)
         }
@@ -116,8 +134,12 @@ class TelemetryViewModel : ViewModel() {
         // Apply new values
         _telemetry.update {
             it.copy(
-                voltage = targetVoltage,
-                current = targetCurrent,
+                voltageR = baseVoltR,
+                voltageY = baseVoltY,
+                voltageB = baseVoltB,
+                currentR = targetCurrentR,
+                currentY = targetCurrentY,
+                currentB = targetCurrentB,
                 flowRate = targetFlow.coerceAtLeast(0f),
                 soilMoisture = moisture,
                 tankLevel = tank
@@ -125,37 +147,50 @@ class TelemetryViewModel : ViewModel() {
         }
 
         // Update history caches
-        updateHistory(targetVoltage, targetFlow.coerceAtLeast(0f))
+        updateHistory(baseVoltR, baseVoltY, baseVoltB, targetFlow.coerceAtLeast(0f))
 
         // 5. Run Safety Guard Rules
-        checkSafetyGuards(targetVoltage, targetCurrent, targetFlow)
+        checkSafetyGuards(baseVoltR, baseVoltY, baseVoltB, targetCurrentR, targetCurrentY, targetB = targetCurrentB, targetFlow)
 
         // 6. Run Automation Rules
         runAutomationRules(moisture)
     }
 
-    private fun checkSafetyGuards(volts: Float, amps: Float, flow: Float) {
+    private fun checkSafetyGuards(voltsR: Float, voltsY: Float, voltsB: Float, targetR: Float, targetY: Float, targetB: Float, flow: Float) {
         if (_activeAlarm.value != SafetyAlarm.NONE) return
 
-        // Undervoltage check
-        if (volts < 180f) {
-            triggerAlarm(SafetyAlarm.UNDER_VOLTAGE)
+        // 1. Phase Failure / Single Phasing Check (Any phase < 120V)
+        if (voltsR < 120f || voltsY < 120f || voltsB < 120f) {
+            triggerAlarm(SafetyAlarm.PHASE_FAILURE)
             return
         }
 
-        // Overvoltage check
-        if (volts > 250f) {
+        // 2. Phase Voltage Imbalance Check (difference > 35V)
+        val maxVolt = maxOf(voltsR, voltsY, voltsB)
+        val minVolt = minOf(voltsR, voltsY, voltsB)
+        if (maxVolt - minVolt > 35f) {
+            triggerAlarm(SafetyAlarm.PHASE_IMBALANCE)
+            return
+        }
+
+        // 3. Average Over/Undervoltage check
+        val avgVolts = (voltsR + voltsY + voltsB) / 3f
+        if (avgVolts < 180f) {
+            triggerAlarm(SafetyAlarm.UNDER_VOLTAGE)
+            return
+        }
+        if (avgVolts > 250f) {
             triggerAlarm(SafetyAlarm.OVER_VOLTAGE)
             return
         }
 
-        // Overload check
-        if (_motorState.value == MotorState.ON && amps > 15f) {
+        // 4. Overload Check (Any phase current > 15A)
+        if (_motorState.value == MotorState.ON && (targetR > 15f || targetY > 15f || targetB > 15f)) {
             triggerAlarm(SafetyAlarm.OVERLOAD)
             return
         }
 
-        // Dry run check (Flow < 2 L/min while motor is running)
+        // 5. Dry Run check (Flow < 2 L/min while motor is running)
         if (_motorState.value == MotorState.ON && flow < 2f) {
             dryRunTicks++
             if (dryRunTicks >= 3) { // After 3 seconds of dry running
@@ -188,8 +223,10 @@ class TelemetryViewModel : ViewModel() {
         addLog("CRITICAL: ${alarm.title} - ${alarm.message}", LogSeverity.CRITICAL)
     }
 
-    private fun updateHistory(newVoltage: Float, newFlow: Float) {
-        _voltageHistory.update { (it.drop(1) + newVoltage) }
+    private fun updateHistory(newVR: Float, newVY: Float, newVB: Float, newFlow: Float) {
+        _voltageRHistory.update { (it.drop(1) + newVR) }
+        _voltageYHistory.update { (it.drop(1) + newVY) }
+        _voltageBHistory.update { (it.drop(1) + newVB) }
         _flowHistory.update { (it.drop(1) + newFlow) }
     }
 
@@ -206,7 +243,14 @@ class TelemetryViewModel : ViewModel() {
         
         // Reset current and flow immediately on shut-off
         if (newState == MotorState.OFF) {
-            _telemetry.update { it.copy(current = 0f, flowRate = 0f) }
+            _telemetry.update {
+                it.copy(
+                    currentR = 0f,
+                    currentY = 0f,
+                    currentB = 0f,
+                    flowRate = 0f
+                )
+            }
         }
 
         addLog("Motor switched $newState by user", LogSeverity.INFO)
@@ -238,11 +282,13 @@ class TelemetryViewModel : ViewModel() {
             _activeAlarm.value = SafetyAlarm.NONE
             dryRunTicks = 0
             
-            // reset faults
-            faultLowVoltage = false
-            faultHighVoltage = false
-            faultBlockedPipe = false
+            // Reset faults
+            faultRPhaseCut = false
+            faultYPhaseCut = false
+            faultBPhaseCut = false
+            faultImbalance = false
             faultOverload = false
+            faultDryRun = false
             
             addLog("Safety guards reset. Alarms cleared.", LogSeverity.INFO)
         }
@@ -255,51 +301,62 @@ class TelemetryViewModel : ViewModel() {
         addLog("Simulation Mode ${if (enable) "Running" else "Paused"}", LogSeverity.INFO)
     }
 
-    fun setLowVoltageFault(active: Boolean) {
-        faultLowVoltage = active
+    fun setRPhaseCut(active: Boolean) {
+        faultRPhaseCut = active
         if (active) {
-            faultHighVoltage = false
-            addLog("Simulator: Injected Low Voltage fault (<180V)", LogSeverity.WARNING)
+            addLog("Simulator: Injected R-Phase Failure (0V)", LogSeverity.WARNING)
         } else {
-            addLog("Simulator: Restored Normal Voltage", LogSeverity.INFO)
+            addLog("Simulator: Restored R-Phase Voltage", LogSeverity.INFO)
         }
     }
 
-    fun setHighVoltageFault(active: Boolean) {
-        faultHighVoltage = active
+    fun setYPhaseCut(active: Boolean) {
+        faultYPhaseCut = active
         if (active) {
-            faultLowVoltage = false
-            addLog("Simulator: Injected High Voltage fault (>250V)", LogSeverity.WARNING)
+            addLog("Simulator: Injected Y-Phase Failure (0V)", LogSeverity.WARNING)
         } else {
-            addLog("Simulator: Restored Normal Voltage", LogSeverity.INFO)
+            addLog("Simulator: Restored Y-Phase Voltage", LogSeverity.INFO)
         }
     }
 
-    fun setBlockedPipeFault(active: Boolean) {
-        faultBlockedPipe = active
+    fun setBPhaseCut(active: Boolean) {
+        faultBPhaseCut = active
         if (active) {
-            addLog("Simulator: Simulating physical water line blockage", LogSeverity.WARNING)
+            addLog("Simulator: Injected B-Phase Failure (0V)", LogSeverity.WARNING)
         } else {
-            addLog("Simulator: Water line cleared", LogSeverity.INFO)
+            addLog("Simulator: Restored B-Phase Voltage", LogSeverity.INFO)
+        }
+    }
+
+    fun setPhaseImbalance(active: Boolean) {
+        faultImbalance = active
+        if (active) {
+            addLog("Simulator: Injected Phase Imbalance (R=165V, Y=232V, B=241V)", LogSeverity.WARNING)
+        } else {
+            addLog("Simulator: Restored Phase Balance", LogSeverity.INFO)
         }
     }
 
     fun setOverloadFault(active: Boolean) {
         faultOverload = active
         if (active) {
-            addLog("Simulator: Simulating motor shaft mechanical load jam", LogSeverity.WARNING)
+            addLog("Simulator: Simulating motor shaft overload (>15A)", LogSeverity.WARNING)
         } else {
-            addLog("Simulator: Restored Normal Mechanical Load", LogSeverity.INFO)
+            addLog("Simulator: Restored normal mechanical load", LogSeverity.INFO)
+        }
+    }
+
+    fun setBlockedPipeFault(active: Boolean) {
+        faultDryRun = active
+        if (active) {
+            addLog("Simulator: Simulating dry running (water flow = 0)", LogSeverity.WARNING)
+        } else {
+            addLog("Simulator: Restored water supply flow", LogSeverity.INFO)
         }
     }
 
     fun simulateRainTrigger() {
         _telemetry.update { it.copy(soilMoisture = 90, tankLevel = 100) }
-        addLog("Simulator: Injected Heavy Rainfall Event", LogSeverity.INFO)
+        addLog("Simulator: Injected heavy rainfall event", LogSeverity.INFO)
     }
-}
-
-// Utility extension helper
-private fun Int.coerceAtAtLeast(minimumValue: Int): Int {
-    return if (this < minimumValue) minimumValue else this
 }

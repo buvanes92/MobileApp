@@ -12,8 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,18 +34,26 @@ fun SimulatorPanel(
     val isSimRunning by viewModel.isSimulationActive.collectAsState()
     val telemetry by viewModel.telemetry.collectAsState()
 
-    var lowVoltFault by remember { mutableStateOf(false) }
-    var highVoltFault by remember { mutableStateOf(false) }
-    var blockedPipeFault by remember { mutableStateOf(false) }
+    var rPhaseCut by remember { mutableStateOf(false) }
+    var yPhaseCut by remember { mutableStateOf(false) }
+    var bPhaseCut by remember { mutableStateOf(false) }
+    var imbalanceFault by remember { mutableStateOf(false) }
     var overloadFault by remember { mutableStateOf(false) }
+    var blockedPipeFault by remember { mutableStateOf(false) }
 
     // Synchronize fault states when clearAlarms or normal reset is called in VM
     LaunchedEffect(telemetry) {
-        if (telemetry.voltage in 180f..250f) {
-            lowVoltFault = false
-            highVoltFault = false
+        if (telemetry.voltageR > 120f) rPhaseCut = false
+        if (telemetry.voltageY > 120f) yPhaseCut = false
+        if (telemetry.voltageB > 120f) bPhaseCut = false
+        
+        val maxV = maxOf(telemetry.voltageR, telemetry.voltageY, telemetry.voltageB)
+        val minV = minOf(telemetry.voltageR, telemetry.voltageY, telemetry.voltageB)
+        if (maxV - minV <= 35f) {
+            imbalanceFault = false
         }
-        if (telemetry.current <= 15f) {
+        
+        if (telemetry.currentR <= 15f && telemetry.currentY <= 15f && telemetry.currentB <= 15f) {
             overloadFault = false
         }
         if (telemetry.flowRate > 0f) {
@@ -58,7 +66,6 @@ fun SimulatorPanel(
         contentAlignment = Alignment.BottomCenter
     ) {
         if (!isExpanded) {
-            // Floating pill trigger button
             ExtendedFloatingActionButton(
                 onClick = onToggleExpand,
                 icon = { Icon(Icons.Default.Build, "Settings", tint = Color.Black) },
@@ -69,7 +76,6 @@ fun SimulatorPanel(
                     .align(Alignment.BottomEnd)
             )
         } else {
-            // Backdrop dim filter
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -77,13 +83,12 @@ fun SimulatorPanel(
                     .clickable { onToggleExpand() }
             )
 
-            // Panel content card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                     .align(Alignment.BottomCenter)
-                    .clickable(enabled = false) {}, // prevent click-through
+                    .clickable(enabled = false) {},
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
             ) {
@@ -107,7 +112,7 @@ fun SimulatorPanel(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "IoT Hardware Simulator",
+                                text = "IoT 3-Phase Simulator",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Black
                             )
@@ -128,7 +133,7 @@ fun SimulatorPanel(
                     ) {
                         Column {
                             Text(
-                                text = "Run Telemetry Simulation Loop",
+                                text = "Run Telemetry Simulation",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -148,83 +153,103 @@ fun SimulatorPanel(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
-                        text = "INJECT TELEMETRY ANOMALIES (TEST CUTOFFS)",
+                        text = "INJECT FAULTS (TEST SAFETY TRIPS)",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                         letterSpacing = 1.sp,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 6.dp)
                     )
 
-                    // Voltage Sag/Surge Checkboxes
+                    // Phase Cuts (R, Y, B failure cuts)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
                             onClick = {
-                                lowVoltFault = !lowVoltFault
-                                highVoltFault = false
-                                viewModel.setLowVoltageFault(lowVoltFault)
+                                rPhaseCut = !rPhaseCut
+                                viewModel.setRPhaseCut(rPhaseCut)
                             },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (lowVoltFault) WarningOrange else MaterialTheme.colorScheme.background
+                                containerColor = if (rPhaseCut) AlertRed else MaterialTheme.colorScheme.background
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = "Low Volt (165V)",
-                                fontSize = 12.sp,
-                                color = if (lowVoltFault) Color.White else MaterialTheme.colorScheme.onBackground
+                                text = "Cut R-Phase",
+                                fontSize = 11.sp,
+                                color = if (rPhaseCut) Color.White else MaterialTheme.colorScheme.onBackground
                             )
                         }
 
                         Button(
                             onClick = {
-                                highVoltFault = !highVoltFault
-                                lowVoltFault = false
-                                viewModel.setHighVoltageFault(highVoltFault)
+                                yPhaseCut = !yPhaseCut
+                                viewModel.setYPhaseCut(yPhaseCut)
                             },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (highVoltFault) AlertRed else MaterialTheme.colorScheme.background
+                                containerColor = if (yPhaseCut) AlertRed else MaterialTheme.colorScheme.background
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = "High Volt (260V)",
-                                fontSize = 12.sp,
-                                color = if (highVoltFault) Color.White else MaterialTheme.colorScheme.onBackground
+                                text = "Cut Y-Phase",
+                                fontSize = 11.sp,
+                                color = if (yPhaseCut) Color.White else MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                bPhaseCut = !bPhaseCut
+                                viewModel.setBPhaseCut(bPhaseCut)
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (bPhaseCut) AlertRed else MaterialTheme.colorScheme.background
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "Cut B-Phase",
+                                fontSize = 11.sp,
+                                color = if (bPhaseCut) Color.White else MaterialTheme.colorScheme.onBackground
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Blocked Pipe & Motor Overload Checkboxes
+                    // Phase Imbalance & Overload
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
                             onClick = {
-                                blockedPipeFault = !blockedPipeFault
-                                viewModel.setBlockedPipeFault(blockedPipeFault)
+                                imbalanceFault = !imbalanceFault
+                                viewModel.setPhaseImbalance(imbalanceFault)
                             },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (blockedPipeFault) WarningOrange else MaterialTheme.colorScheme.background
+                                containerColor = if (imbalanceFault) WarningOrange else MaterialTheme.colorScheme.background
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = "Block Water Flow",
-                                fontSize = 12.sp,
-                                color = if (blockedPipeFault) Color.White else MaterialTheme.colorScheme.onBackground
+                                text = "Voltage Imbalance",
+                                fontSize = 11.sp,
+                                color = if (imbalanceFault) Color.White else MaterialTheme.colorScheme.onBackground
                             )
                         }
 
@@ -237,24 +262,43 @@ fun SimulatorPanel(
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (overloadFault) AlertRed else MaterialTheme.colorScheme.background
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = "Motor Overload",
-                                fontSize = 12.sp,
+                                text = "Current Overload",
+                                fontSize = 11.sp,
                                 color = if (overloadFault) Color.White else MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                blockedPipeFault = !blockedPipeFault
+                                viewModel.setBlockedPipeFault(blockedPipeFault)
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (blockedPipeFault) WarningOrange else MaterialTheme.colorScheme.background
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "Dry Run (0 LPM)",
+                                fontSize = 11.sp,
+                                color = if (blockedPipeFault) Color.White else MaterialTheme.colorScheme.onBackground
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Simulated Weather Trigger
                     Button(
                         onClick = { viewModel.simulateRainTrigger() },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = WaterBlue),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Text("Trigger Simulated Heavy Rainfall", color = Color.White, fontWeight = FontWeight.Bold)
                     }

@@ -5,8 +5,13 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 data class Telemetry(
-    val voltage: Float = 220f,         // in Volts
-    val current: Float = 0f,           // in Amperes (0 if motor is off)
+    val voltageR: Float = 220f,        // Red Phase Voltage
+    val voltageY: Float = 220f,        // Yellow Phase Voltage
+    val voltageB: Float = 220f,        // Blue Phase Voltage
+    val currentR: Float = 0f,          // Red Phase Current (Amps)
+    val currentY: Float = 0f,          // Yellow Phase Current (Amps)
+    val currentB: Float = 0f,          // Blue Phase Current (Amps)
+    val powerFactor: Float = 0.85f,    // System Power Factor (0.0 to 1.0)
     val flowRate: Float = 0f,          // in Liters per minute
     val valveOpenPercent: Int = 100,    // 0 to 100%
     val soilMoisture: Int = 55,        // in %
@@ -22,7 +27,9 @@ enum class SafetyAlarm(val title: String, val message: String) {
     UNDER_VOLTAGE("Undervoltage Error", "Voltage dropped below safe threshold (180V). Motor stopped automatically."),
     OVER_VOLTAGE("Overvoltage Error", "Voltage exceeded safe threshold (250V). Motor stopped automatically."),
     DRY_RUN("Dry Run Detected", "No water flow detected while motor running. Motor stopped to prevent burn-out."),
-    OVERLOAD("Overload Detected", "Current exceeded safe threshold (15A). Motor stopped automatically.")
+    OVERLOAD("Overload Detected", "Current exceeded safe threshold (15A). Motor stopped automatically."),
+    PHASE_FAILURE("Phase Failure (Single Phasing)", "One or more power phases dropped below safe limit (120V). Motor stopped to prevent damage."),
+    PHASE_IMBALANCE("Phase Voltage Imbalance", "Voltage imbalance between phases exceeded safe limit (35V). Motor stopped automatically.")
 }
 
 enum class LogSeverity {

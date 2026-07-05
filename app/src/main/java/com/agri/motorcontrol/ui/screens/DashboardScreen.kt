@@ -1,9 +1,9 @@
 package com.agri.motorcontrol.ui.screens
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -48,11 +47,11 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        // --- Connection & Header status ---
+        // --- Header Status ---
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
+                .padding(bottom = 12.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(16.dp)
         ) {
@@ -65,8 +64,8 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
             ) {
                 Column {
                     Text(
-                        text = "Irrigation Pump A",
-                        fontSize = 20.sp,
+                        text = "3-Phase Irrigation Pump",
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
@@ -82,28 +81,21 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (alarm == SafetyAlarm.NONE) "Online" else "Fault Alarm Active",
+                            text = if (alarm == SafetyAlarm.NONE) "GSM Connected (Normal)" else "System Fault Locked",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     }
                 }
-                
-                // Weather / Signal status
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = "Signal Strength",
-                        tint = EmeraldPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = "Battery Level",
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(20.dp)
-                    )
+
+                // Phase indicators R-Y-B in header
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PhaseIndicatorDot(label = "R", isActive = telemetry.voltageR > 120f, color = Color(0xFFE53935))
+                    PhaseIndicatorDot(label = "Y", isActive = telemetry.voltageY > 120f, color = Color(0xFFFFEB3B))
+                    PhaseIndicatorDot(label = "B", isActive = telemetry.voltageB > 120f, color = Color(0xFF1E88E5))
                 }
             }
         }
@@ -113,7 +105,7 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 12.dp),
                 colors = CardDefaults.cardColors(containerColor = AlertRed.copy(alpha = 0.15f)),
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, AlertRed)
@@ -132,13 +124,13 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = alarm.title,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = AlertRed
                         )
                         Text(
                             text = alarm.message,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onBackground
                         )
                     }
@@ -154,36 +146,35 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
             }
         }
 
-        // --- Core Motor Trigger & Auto Mode Control ---
+        // --- Core Motor Controls ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Motor Switch Card
             Card(
                 modifier = Modifier
                     .weight(1.3f)
-                    .height(180.dp),
+                    .height(160.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
+                        .padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Motor Control",
-                        fontSize = 14.sp,
+                        text = "Motor Controller",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                     )
 
-                    // Animated spinning ring around motor start button
                     val transition = rememberInfiniteTransition(label = "motorRotation")
                     val rotation by transition.animateFloat(
                         initialValue = 0f,
@@ -198,7 +189,7 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(90.dp)
+                            .size(80.dp)
                             .clip(CircleShape)
                             .background(
                                 Brush.radialGradient(
@@ -210,7 +201,6 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                                 )
                             )
                     ) {
-                        // Spinning dotted ring
                         if (motorState == MotorState.ON) {
                             Canvas(modifier = Modifier.fillMaxSize().rotate(rotation)) {
                                 drawArc(
@@ -223,14 +213,13 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                             }
                         }
 
-                        // Physical button
                         FloatingActionButton(
                             onClick = { viewModel.toggleMotor() },
                             shape = CircleShape,
                             containerColor = if (motorState == MotorState.ON) EmeraldPrimary else MaterialTheme.colorScheme.background,
                             contentColor = if (motorState == MotorState.ON) Color.Black else MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier
-                                .size(68.dp)
+                                .size(60.dp)
                                 .border(
                                     width = 2.dp,
                                     color = if (motorState == MotorState.ON) EmeraldPrimary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f),
@@ -238,9 +227,9 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                                 )
                         ) {
                             Icon(
-                                imageVector = Icons.Default.PlayArrow, // Represents Motor toggle
+                                imageVector = Icons.Default.PlayArrow,
                                 contentDescription = "Toggle Motor",
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(28.dp),
                                 tint = if (motorState == MotorState.ON) Color.White else MaterialTheme.colorScheme.onBackground
                             )
                         }
@@ -248,7 +237,7 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
 
                     Text(
                         text = if (motorState == MotorState.ON) "RUNNING" else "STOPPED",
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = if (motorState == MotorState.ON) EmeraldPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                         letterSpacing = 1.sp
@@ -256,24 +245,24 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                 }
             }
 
-            // Auto-Mode Controller Card
+            // Auto Mode Switch Card
             Card(
                 modifier = Modifier
                     .weight(1f)
-                    .height(180.dp),
+                    .height(160.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
+                        .padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = "Auto Irrigation",
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                     )
@@ -282,7 +271,7 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                         imageVector = if (autoMode) Icons.Default.Refresh else Icons.Default.Home,
                         contentDescription = "Auto Mode Icon",
                         tint = if (autoMode) EmeraldPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                        modifier = Modifier.size(50.dp)
+                        modifier = Modifier.size(42.dp)
                     )
 
                     Switch(
@@ -298,7 +287,7 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
 
                     Text(
                         text = if (autoMode) "ACTIVE" else "INACTIVE",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (autoMode) EmeraldPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                     )
@@ -306,67 +295,85 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
             }
         }
 
-        // --- Live Telemetry Dials ---
-        Row(
+        // --- 3-Phase Voltage & Current Monitoring Card ---
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(bottom = 12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(20.dp)
         ) {
-            // Voltage Gauge Card
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(125.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                CircularMetric(
-                    value = "${telemetry.voltage.roundToInt()}V",
-                    label = "Voltage",
-                    progress = (telemetry.voltage / 300f).coerceIn(0f, 1f),
-                    color = when {
-                        telemetry.voltage < 180f -> WarningOrange
-                        telemetry.voltage > 250f -> AlertRed
-                        else -> EmeraldPrimary
-                    }
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "3-Phase Power Parameters",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(bottom = 12.dp)
                 )
-            }
 
-            // Current Gauge Card
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(125.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                CircularMetric(
-                    value = String.format("%.1f A", telemetry.current),
-                    label = "Current",
-                    progress = (telemetry.current / 20f).coerceIn(0f, 1f),
-                    color = if (telemetry.current > 15f) AlertRed else MaterialTheme.colorScheme.primary
-                )
-            }
+                // Headers
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Phase", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.weight(1f))
+                    Text("Voltage", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
+                    Text("Current", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
+                }
 
-            // Water Flow Card
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(125.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                CircularMetric(
-                    value = String.format("%.1f LPM", telemetry.flowRate),
-                    label = "Water Flow",
-                    progress = (telemetry.flowRate / 45f).coerceIn(0f, 1f),
-                    color = WaterBlue
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Phase Red
+                PhaseParamRow(
+                    label = "Red (R)",
+                    voltage = telemetry.voltageR,
+                    current = telemetry.currentR,
+                    color = Color(0xFFE53935)
                 )
+
+                Divider(color = MaterialTheme.colorScheme.background, modifier = Modifier.padding(vertical = 8.dp))
+
+                // Phase Yellow
+                PhaseParamRow(
+                    label = "Yellow (Y)",
+                    voltage = telemetry.voltageY,
+                    current = telemetry.currentY,
+                    color = Color(0xFFFFEB3B)
+                )
+
+                Divider(color = MaterialTheme.colorScheme.background, modifier = Modifier.padding(vertical = 8.dp))
+
+                // Phase Blue
+                PhaseParamRow(
+                    label = "Blue (B)",
+                    voltage = telemetry.voltageB,
+                    current = telemetry.currentB,
+                    color = Color(0xFF1E88E5)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "System Power Factor (PF):",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = String.format("%.2f", telemetry.powerFactor),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldPrimary
+                    )
+                }
             }
         }
 
-        // --- Gate Valve & Moisture Controls ---
+        // --- Water flow, Valve, Soil Moisture ---
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -380,36 +387,40 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                     .padding(16.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "Gate Valve Control",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-
+                // Water flow rate info
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.List,
-                            contentDescription = "Valve Icon",
-                            tint = WaterBlue,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Icon(Icons.Default.Info, contentDescription = "Water Flow", tint = WaterBlue)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Position:",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
+                        Text("Water Flow Rate:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                     }
                     Text(
-                        text = "${telemetry.valveOpenPercent}% ${if (telemetry.valveOpenPercent == 100) "(OPEN)" else if (telemetry.valveOpenPercent == 0) "(CLOSED)" else ""}",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                        text = String.format("%.1f LPM", telemetry.flowRate),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Black,
+                        color = WaterBlue
+                    )
+                }
+
+                // Gate valve opening
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.List, contentDescription = "Valve", tint = WaterBlue)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Gate Valve Open:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    }
+                    Text(
+                        text = "${telemetry.valveOpenPercent}%",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
                         color = WaterBlue
                     )
                 }
@@ -426,50 +437,38 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Divider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.background)
+                Divider(color = MaterialTheme.colorScheme.background, modifier = Modifier.padding(vertical = 4.dp))
 
-                // Irrigation feedback stats (Moisture & Tank Level)
+                // Soil Moisture & Tank Level feedback
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "Moisture",
-                                tint = WarningOrange,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(WarningOrange))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Soil Moisture", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                            Text("Soil Moisture", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                         }
                         Text(
                             text = "${telemetry.soilMoisture}%",
-                            fontSize = 18.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(top = 4.dp)
+                            modifier = Modifier.padding(top = 2.dp)
                         )
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = "Tank Level",
-                                tint = WaterBlue,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(WaterBlue))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Water Source Level", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                            Text("Water Source Level", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                         }
                         Text(
                             text = "${telemetry.tankLevel}%",
-                            fontSize = 18.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(top = 4.dp)
+                            modifier = Modifier.padding(top = 2.dp)
                         )
                     }
                 }
@@ -479,52 +478,64 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
 }
 
 @Composable
-fun CircularMetric(
-    value: String,
-    label: String,
-    progress: Float,
-    color: Color
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
+fun PhaseIndicatorDot(label: String, isActive: Boolean, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            modifier = Modifier.size(54.dp),
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(if (isActive) color else MaterialTheme.colorScheme.background)
+                .border(
+                    width = 1.5.dp,
+                    color = if (isActive) color else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                // Background Track
-                drawCircle(
-                    color = color.copy(alpha = 0.12f),
-                    style = Stroke(width = 4.dp.toPx())
-                )
-                // Colored progress track
-                drawArc(
-                    color = color,
-                    startAngle = -90f,
-                    sweepAngle = 360f * progress,
-                    useCenter = false,
-                    style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
-                )
-            }
             Text(
-                text = value,
-                fontSize = 12.sp,
+                text = label,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onBackground
+                color = if (isActive) Color.Black else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
             )
         }
-        Spacer(modifier = Modifier.height(6.dp))
+    }
+}
+
+@Composable
+fun PhaseParamRow(label: String, voltage: Float, current: Float, color: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        }
+
         Text(
-            text = label,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center
+            text = "${voltage.roundToInt()} V",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (voltage < 120f) AlertRed else MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.weight(1.2f),
+            textAlign = TextAlign.End
+        )
+
+        Text(
+            text = String.format("%.1f A", current),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (current > 15f) AlertRed else MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.weight(1.2f),
+            textAlign = TextAlign.End
         )
     }
 }
