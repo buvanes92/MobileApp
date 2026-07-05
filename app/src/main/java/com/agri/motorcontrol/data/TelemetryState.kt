@@ -13,7 +13,7 @@ data class Telemetry(
     val currentB: Float = 0f,          // Blue Phase Current (Amps)
     val powerFactor: Float = 0.85f,    // System Power Factor (0.0 to 1.0)
     val flowRate: Float = 0f,          // in Liters per minute
-    val valveOpenPercent: Int = 100,    // 0 to 100%
+    val valveOpen: Boolean = true,      // Gate Valve state (true = OPEN, false = CLOSED)
     val soilMoisture: Int = 55,        // in %
     val tankLevel: Int = 85            // in %
 )

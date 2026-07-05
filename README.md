@@ -6,7 +6,7 @@ A native Android mobile application built with **Kotlin**, **Jetpack Compose**, 
 
 1. **Live Dashboard & Controls**:
    - Touch-sensitive neon **Motor Switch** with spinning activity ring.
-   - Smooth **Gate Valve Slider** to regulate water flow.
+   - Tactile **Gate Valve Switch** to open or close the line.
    - Custom **Circular Gauges** monitoring Voltage (V), Current (A), and Flow Rate (LPM) in real time.
    - Live status badges for Soil Moisture and Water Source levels.
 

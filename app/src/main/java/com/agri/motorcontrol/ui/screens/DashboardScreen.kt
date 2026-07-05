@@ -226,12 +226,24 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                                     shape = CircleShape
                                 )
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Toggle Motor",
-                                modifier = Modifier.size(28.dp),
-                                tint = if (motorState == MotorState.ON) Color.White else MaterialTheme.colorScheme.onBackground
-                            )
+                            if (motorState == MotorState.ON) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Running",
+                                    modifier = Modifier.size(28.dp),
+                                    tint = Color.White
+                                )
+                            } else {
+                                // Custom Stop symbol (a clean filled rounded square)
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                            shape = RoundedCornerShape(3.dp)
+                                        )
+                                )
+                            }
                         }
                     }
 
@@ -406,7 +418,7 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                     )
                 }
 
-                // Gate valve opening
+                // Gate valve status and control switch
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -415,27 +427,28 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.List, contentDescription = "Valve", tint = WaterBlue)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Gate Valve Open:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                        Text("Gate Valve:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                     }
-                    Text(
-                        text = "${telemetry.valveOpenPercent}%",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WaterBlue
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (telemetry.valveOpen) "OPEN" else "CLOSED",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (telemetry.valveOpen) EmeraldPrimary else AlertRed,
+                            modifier = Modifier.padding(end = 12.dp)
+                        )
+                        Switch(
+                            checked = telemetry.valveOpen,
+                            onCheckedChange = { viewModel.toggleValve() },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = EmeraldPrimary,
+                                uncheckedThumbColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                uncheckedTrackColor = MaterialTheme.colorScheme.background
+                            )
+                        )
+                    }
                 }
-
-                Slider(
-                    value = telemetry.valveOpenPercent.toFloat(),
-                    onValueChange = { viewModel.setValvePosition(it.roundToInt()) },
-                    valueRange = 0f..100f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = WaterBlue,
-                        activeTrackColor = WaterBlue,
-                        inactiveTrackColor = MaterialTheme.colorScheme.background
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
 
                 Divider(color = MaterialTheme.colorScheme.background, modifier = Modifier.padding(vertical = 4.dp))
 

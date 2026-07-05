@@ -1,6 +1,7 @@
 package com.agri.motorcontrol.ui
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.agri.motorcontrol.data.*
 import kotlinx.coroutines.Job
@@ -10,9 +11,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.util.UUID
 import kotlin.random.Random
 
-class TelemetryViewModel : ViewModel() {
+class TelemetryViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _telemetry = MutableStateFlow(Telemetry())
     val telemetry: StateFlow<Telemetry> = _telemetry.asStateFlow()
@@ -60,8 +65,7 @@ class TelemetryViewModel : ViewModel() {
     private var simJob: Job? = null
 
     init {
-        addLog("3-Phase Smart Pump Controller Online", LogSeverity.INFO)
-        addLog("GSM Signal: Strong (RSSI -61dBm)", LogSeverity.INFO)
+        loadLogsFromFile()
         startSimulation()
     }
 
@@ -109,8 +113,8 @@ class TelemetryViewModel : ViewModel() {
         } else 0f
 
         // 3. Calculate Flow Rate based on Motor & Valve & Blockage
-        val targetFlow = if (currentMotor == MotorState.ON && !faultDryRun) {
-            val baseFlow = currentTelemetry.valveOpenPercent * 0.35f // max ~35 L/min
+        val targetFlow = if (currentMotor == MotorState.ON && currentTelemetry.valveOpen && !faultDryRun) {
+            val baseFlow = 35f // max ~35 L/min when open
             baseFlow + Random.nextFloat() * 1.5f - 0.7f
         } else {
             0f
@@ -262,8 +266,9 @@ class TelemetryViewModel : ViewModel() {
         addLog("Automatic Mode ${if (newState) "ENABLED" else "DISABLED"}", LogSeverity.INFO)
     }
 
-    fun setValvePosition(percent: Int) {
-        _telemetry.update { it.copy(valveOpenPercent = percent.coerceIn(0, 100)) }
+    fun toggleValve() {
+        _telemetry.update { it.copy(valveOpen = !it.valveOpen) }
+        addLog("Gate Valve switched ${if (_telemetry.value.valveOpen) "OPEN" else "CLOSED"} by user", LogSeverity.INFO)
     }
 
     fun updateSchedule(newSchedule: TimerSchedule) {
@@ -274,6 +279,7 @@ class TelemetryViewModel : ViewModel() {
     fun addLog(message: String, severity: LogSeverity = LogSeverity.INFO) {
         val entry = LogEntry(message = message, severity = severity)
         _logs.update { (listOf(entry) + it).take(50) } // Keep last 50 logs
+        saveLogsToFile()
     }
 
     fun clearAlarms() {
@@ -358,5 +364,74 @@ class TelemetryViewModel : ViewModel() {
     fun simulateRainTrigger() {
         _telemetry.update { it.copy(soilMoisture = 90, tankLevel = 100) }
         addLog("Simulator: Injected heavy rainfall event", LogSeverity.INFO)
+    }
+
+    fun clearLogsHistory() {
+        _logs.value = emptyList()
+        try {
+            val file = File(getApplication<Application>().filesDir, "system_logs.json")
+            if (file.exists()) file.delete()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        addLog("Log history cleared by user", LogSeverity.INFO)
+    }
+
+    private fun saveLogsToFile() {
+        viewModelScope.launch {
+            try {
+                val jsonArray = JSONArray()
+                _logs.value.forEach { log ->
+                    val jsonObject = JSONObject().apply {
+                        put("id", log.id)
+                        put("timestamp", log.timestamp)
+                        put("message", log.message)
+                        put("severity", log.severity.name)
+                    }
+                    jsonArray.put(jsonObject)
+                }
+                getApplication<Application>().openFileOutput("system_logs.json", android.content.Context.MODE_PRIVATE).use { output ->
+                    output.write(jsonArray.toString().toByteArray())
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun loadLogsFromFile() {
+        try {
+            val file = File(getApplication<Application>().filesDir, "system_logs.json")
+            if (!file.exists()) {
+                val initialLogs = listOf(
+                    LogEntry(message = "3-Phase Smart Pump Controller Online", severity = LogSeverity.INFO),
+                    LogEntry(message = "GSM Signal: Strong (RSSI -61dBm)", severity = LogSeverity.INFO)
+                )
+                _logs.value = initialLogs
+                saveLogsToFile()
+                return
+            }
+            val content = file.readText()
+            val jsonArray = JSONArray(content)
+            val loadedLogs = mutableListOf<LogEntry>()
+            for (i in 0 until jsonArray.length()) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                val log = LogEntry(
+                    id = jsonObject.optString("id", UUID.randomUUID().toString()),
+                    timestamp = jsonObject.optString("timestamp", ""),
+                    message = jsonObject.optString("message", ""),
+                    severity = LogSeverity.valueOf(jsonObject.optString("severity", LogSeverity.INFO.name))
+                )
+                loadedLogs.add(log)
+            }
+            _logs.value = loadedLogs
+        } catch (e: Exception) {
+            e.printStackTrace();
+            _logs.value = listOf(
+                LogEntry(message = "Error loading stored logs. Resetting log history.", severity = LogSeverity.WARNING),
+                LogEntry(message = "3-Phase Smart Pump Controller Online", severity = LogSeverity.INFO)
+            )
+            saveLogsToFile()
+        }
     }
 }
