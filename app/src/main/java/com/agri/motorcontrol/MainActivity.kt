@@ -23,6 +23,7 @@ import androidx.navigation.compose.rememberNavController
 import com.agri.motorcontrol.ui.TelemetryViewModel
 import com.agri.motorcontrol.ui.screens.AnalyticsScreen
 import com.agri.motorcontrol.ui.screens.DashboardScreen
+import com.agri.motorcontrol.ui.screens.LoginScreen
 import com.agri.motorcontrol.ui.screens.SchedulerScreen
 import com.agri.motorcontrol.ui.screens.SimulatorPanel
 import com.agri.motorcontrol.ui.theme.AgriMotorControlTheme
@@ -49,56 +50,67 @@ fun MainLayout(viewModel: TelemetryViewModel) {
     val navController = rememberNavController()
     var isSimulatorExpanded by remember { mutableStateOf(false) }
     val currentBackstackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = currentBackstackEntry?.destination?.route ?: "dashboard"
+    val currentRoute = currentBackstackEntry?.destination?.route ?: "login"
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp
-                ) {
-                    NavigationBarItem(
-                        selected = currentRoute == "dashboard",
-                        onClick = {
-                            navController.navigate("dashboard") {
-                                popUpTo("dashboard") { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
-                        label = { Text("Dashboard", fontSize = 11.sp) }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == "scheduler",
-                        onClick = {
-                            navController.navigate("scheduler") {
-                                popUpTo("dashboard")
-                                launchSingleTop = true
-                            }
-                        },
-                        icon = { Icon(Icons.Default.DateRange, contentDescription = "Schedule") },
-                        label = { Text("Schedule", fontSize = 11.sp) }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == "analytics",
-                        onClick = {
-                            navController.navigate("analytics") {
-                                popUpTo("dashboard")
-                                launchSingleTop = true
-                            }
-                        },
-                        icon = { Icon(Icons.Default.List, contentDescription = "Analytics") },
-                        label = { Text("Analytics", fontSize = 11.sp) }
-                    )
+                if (currentRoute != "login") {
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 8.dp
+                    ) {
+                        NavigationBarItem(
+                            selected = currentRoute == "dashboard",
+                            onClick = {
+                                navController.navigate("dashboard") {
+                                    popUpTo("dashboard") { inclusive = false }
+                                    launchSingleTop = true
+                                }
+                            },
+                            icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
+                            label = { Text("Dashboard", fontSize = 11.sp) }
+                        )
+                        NavigationBarItem(
+                            selected = currentRoute == "scheduler",
+                            onClick = {
+                                navController.navigate("scheduler") {
+                                    popUpTo("dashboard")
+                                    launchSingleTop = true
+                                }
+                            },
+                            icon = { Icon(Icons.Default.DateRange, contentDescription = "Schedule") },
+                            label = { Text("Schedule", fontSize = 11.sp) }
+                        )
+                        NavigationBarItem(
+                            selected = currentRoute == "analytics",
+                            onClick = {
+                                navController.navigate("analytics") {
+                                    popUpTo("dashboard")
+                                    launchSingleTop = true
+                                }
+                            },
+                            icon = { Icon(Icons.Default.List, contentDescription = "Analytics") },
+                            label = { Text("Analytics", fontSize = 11.sp) }
+                        )
+                    }
                 }
             }
         ) { innerPadding ->
             NavHost(
                 navController = navController,
-                startDestination = "dashboard",
+                startDestination = "login",
                 modifier = Modifier.padding(innerPadding)
             ) {
+                composable("login") {
+                    LoginScreen(
+                        onLoginSuccess = {
+                            navController.navigate("dashboard") {
+                                popUpTo("login") { inclusive = true }
+                            }
+                        }
+                    )
+                }
                 composable("dashboard") {
                     DashboardScreen(viewModel)
                 }
@@ -111,12 +123,14 @@ fun MainLayout(viewModel: TelemetryViewModel) {
             }
         }
 
-        // Overlay Hardware Simulator Panel
-        SimulatorPanel(
-            viewModel = viewModel,
-            isExpanded = isSimulatorExpanded,
-            onToggleExpand = { isSimulatorExpanded = !isSimulatorExpanded },
-            modifier = Modifier.fillMaxSize()
-        )
+        // Overlay Hardware Simulator Panel (Hidden on login screen)
+        if (currentRoute != "login") {
+            SimulatorPanel(
+                viewModel = viewModel,
+                isExpanded = isSimulatorExpanded,
+                onToggleExpand = { isSimulatorExpanded = !isSimulatorExpanded },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }
