@@ -26,8 +26,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.agri.motorcontrol.data.LogEntry
-import com.agri.motorcontrol.data.LogSeverity
+import com.agri.motorcontrol.data.*
 import com.agri.motorcontrol.ui.TelemetryViewModel
 import com.agri.motorcontrol.ui.theme.AlertRed
 import com.agri.motorcontrol.ui.theme.EmeraldPrimary
@@ -36,6 +35,7 @@ import com.agri.motorcontrol.ui.theme.WaterBlue
 
 @Composable
 fun AnalyticsScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier) {
+    val telemetry by viewModel.telemetry.collectAsState()
     val voltageRHistory by viewModel.voltageRHistory.collectAsState()
     val voltageYHistory by viewModel.voltageYHistory.collectAsState()
     val voltageBHistory by viewModel.voltageBHistory.collectAsState()

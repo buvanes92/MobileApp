@@ -25,8 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.agri.motorcontrol.data.MotorState
-import com.agri.motorcontrol.data.SafetyAlarm
+import com.agri.motorcontrol.data.*
 import com.agri.motorcontrol.ui.TelemetryViewModel
 import com.agri.motorcontrol.ui.theme.AlertRed
 import com.agri.motorcontrol.ui.theme.EmeraldPrimary
