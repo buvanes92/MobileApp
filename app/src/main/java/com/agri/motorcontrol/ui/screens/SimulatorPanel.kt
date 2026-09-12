@@ -112,7 +112,7 @@ fun SimulatorPanel(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "IoT 3-Phase Simulator",
+                                text = if (telemetry.phaseMode == com.agri.motorcontrol.data.PhaseMode.SINGLE_PHASE) "IoT 1-Phase Simulator" else "IoT 3-Phase Simulator",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Black
                             )
@@ -182,7 +182,7 @@ fun SimulatorPanel(
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = "Cut R-Phase",
+                                text = if (telemetry.phaseMode == com.agri.motorcontrol.data.PhaseMode.SINGLE_PHASE) "Cut Line" else "Cut R-Phase",
                                 fontSize = 11.sp,
                                 color = if (rPhaseCut) Color.White else MaterialTheme.colorScheme.onBackground
                             )
@@ -193,9 +193,11 @@ fun SimulatorPanel(
                                 yPhaseCut = !yPhaseCut
                                 viewModel.setYPhaseCut(yPhaseCut)
                             },
+                            enabled = telemetry.phaseMode == com.agri.motorcontrol.data.PhaseMode.THREE_PHASE,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (yPhaseCut) AlertRed else MaterialTheme.colorScheme.background
+                                containerColor = if (yPhaseCut) AlertRed else MaterialTheme.colorScheme.background,
+                                disabledContainerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.3f)
                             ),
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
@@ -203,7 +205,7 @@ fun SimulatorPanel(
                             Text(
                                 text = "Cut Y-Phase",
                                 fontSize = 11.sp,
-                                color = if (yPhaseCut) Color.White else MaterialTheme.colorScheme.onBackground
+                                color = if (yPhaseCut) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = if (telemetry.phaseMode == com.agri.motorcontrol.data.PhaseMode.THREE_PHASE) 1f else 0.3f)
                             )
                         }
 
@@ -212,9 +214,11 @@ fun SimulatorPanel(
                                 bPhaseCut = !bPhaseCut
                                 viewModel.setBPhaseCut(bPhaseCut)
                             },
+                            enabled = telemetry.phaseMode == com.agri.motorcontrol.data.PhaseMode.THREE_PHASE,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (bPhaseCut) AlertRed else MaterialTheme.colorScheme.background
+                                containerColor = if (bPhaseCut) AlertRed else MaterialTheme.colorScheme.background,
+                                disabledContainerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.3f)
                             ),
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
@@ -222,7 +226,7 @@ fun SimulatorPanel(
                             Text(
                                 text = "Cut B-Phase",
                                 fontSize = 11.sp,
-                                color = if (bPhaseCut) Color.White else MaterialTheme.colorScheme.onBackground
+                                color = if (bPhaseCut) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = if (telemetry.phaseMode == com.agri.motorcontrol.data.PhaseMode.THREE_PHASE) 1f else 0.3f)
                             )
                         }
                     }
@@ -239,9 +243,11 @@ fun SimulatorPanel(
                                 imbalanceFault = !imbalanceFault
                                 viewModel.setPhaseImbalance(imbalanceFault)
                             },
+                            enabled = telemetry.phaseMode == com.agri.motorcontrol.data.PhaseMode.THREE_PHASE,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (imbalanceFault) WarningOrange else MaterialTheme.colorScheme.background
+                                containerColor = if (imbalanceFault) WarningOrange else MaterialTheme.colorScheme.background,
+                                disabledContainerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.3f)
                             ),
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
@@ -249,7 +255,7 @@ fun SimulatorPanel(
                             Text(
                                 text = "Voltage Imbalance",
                                 fontSize = 11.sp,
-                                color = if (imbalanceFault) Color.White else MaterialTheme.colorScheme.onBackground
+                                color = if (imbalanceFault) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = if (telemetry.phaseMode == com.agri.motorcontrol.data.PhaseMode.THREE_PHASE) 1f else 0.3f)
                             )
                         }
 

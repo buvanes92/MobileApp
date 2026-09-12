@@ -84,11 +84,12 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
     private fun runSimulationStep() {
         val currentMotor = _motorState.value
         val currentTelemetry = _telemetry.value
+        val isSinglePhase = currentTelemetry.phaseMode == PhaseMode.SINGLE_PHASE
 
-        // 1. Calculate individual Phase Voltages (normal 220V +/- 3V unless phase cuts / imbalance injected)
-        val baseVoltR = if (faultRPhaseCut) 0f else if (faultImbalance) 165f else 220f + Random.nextFloat() * 4f - 2f
-        val baseVoltY = if (faultYPhaseCut) 0f else if (faultImbalance) 232f else 221f + Random.nextFloat() * 4f - 2f
-        val baseVoltB = if (faultBPhaseCut) 0f else if (faultImbalance) 241f else 219f + Random.nextFloat() * 4f - 2f
+        // 1. Calculate individual Phase Voltages
+        val baseVoltR = if (faultRPhaseCut) 0f else if (faultImbalance && !isSinglePhase) 165f else 220f + Random.nextFloat() * 4f - 2f
+        val baseVoltY = if (isSinglePhase) 0f else if (faultYPhaseCut) 0f else if (faultImbalance) 232f else 221f + Random.nextFloat() * 4f - 2f
+        val baseVoltB = if (isSinglePhase) 0f else if (faultBPhaseCut) 0f else if (faultImbalance) 241f else 219f + Random.nextFloat() * 4f - 2f
 
         // 2. Calculate Phase Currents based on Motor State
         val targetCurrentR = if (currentMotor == MotorState.ON && !faultRPhaseCut) {
@@ -98,14 +99,14 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
             }
         } else 0f
 
-        val targetCurrentY = if (currentMotor == MotorState.ON && !faultYPhaseCut) {
+        val targetCurrentY = if (!isSinglePhase && currentMotor == MotorState.ON && !faultYPhaseCut) {
             when {
                 faultOverload -> 16.5f + Random.nextFloat() * 0.8f
                 else -> 8.1f + Random.nextFloat() * 0.4f - 0.2f
             }
         } else 0f
 
-        val targetCurrentB = if (currentMotor == MotorState.ON && !faultBPhaseCut) {
+        val targetCurrentB = if (!isSinglePhase && currentMotor == MotorState.ON && !faultBPhaseCut) {
             when {
                 faultOverload -> 16.3f + Random.nextFloat() * 0.8f
                 else -> 8.3f + Random.nextFloat() * 0.4f - 0.2f
@@ -125,13 +126,10 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
         var tank = currentTelemetry.tankLevel
 
         if (currentMotor == MotorState.ON && targetFlow > 2f) {
-            // Watering soil
             if (Random.nextInt(100) < 30) moisture = (moisture + 1).coerceAtMost(100)
             if (Random.nextInt(100) < 40) tank = (tank - 1).coerceAtLeast(0)
         } else {
-            // Natural soil drying out
             if (Random.nextInt(100) < 15) moisture = (moisture - 1).coerceAtLeast(10)
-            // Rain/Refill simulator slowly
             if (Random.nextInt(100) < 20) tank = (tank + 1).coerceAtMost(100)
         }
 
@@ -154,50 +152,63 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
         updateHistory(baseVoltR, baseVoltY, baseVoltB, targetFlow.coerceAtLeast(0f))
 
         // 5. Run Safety Guard Rules
-        checkSafetyGuards(baseVoltR, baseVoltY, baseVoltB, targetCurrentR, targetCurrentY, targetB = targetCurrentB, targetFlow)
+        checkSafetyGuards(baseVoltR, baseVoltY, baseVoltB, targetCurrentR, targetCurrentY, targetB = targetCurrentB, targetFlow, currentTelemetry.phaseMode)
 
         // 6. Run Automation Rules
         runAutomationRules(moisture)
     }
 
-    private fun checkSafetyGuards(voltsR: Float, voltsY: Float, voltsB: Float, targetR: Float, targetY: Float, targetB: Float, flow: Float) {
+    private fun checkSafetyGuards(voltsR: Float, voltsY: Float, voltsB: Float, targetR: Float, targetY: Float, targetB: Float, flow: Float, mode: PhaseMode) {
         if (_activeAlarm.value != SafetyAlarm.NONE) return
 
-        // 1. Phase Failure / Single Phasing Check (Any phase < 120V)
-        if (voltsR < 120f || voltsY < 120f || voltsB < 120f) {
-            triggerAlarm(SafetyAlarm.PHASE_FAILURE)
-            return
+        if (mode == PhaseMode.SINGLE_PHASE) {
+            // Single Phase Safety Checks
+            if (voltsR < 180f) {
+                triggerAlarm(SafetyAlarm.UNDER_VOLTAGE)
+                return
+            }
+            if (voltsR > 250f) {
+                triggerAlarm(SafetyAlarm.OVER_VOLTAGE)
+                return
+            }
+            if (_motorState.value == MotorState.ON && targetR > 15f) {
+                triggerAlarm(SafetyAlarm.OVERLOAD)
+                return
+            }
+        } else {
+            // 3-Phase Safety Checks
+            if (voltsR < 120f || voltsY < 120f || voltsB < 120f) {
+                triggerAlarm(SafetyAlarm.PHASE_FAILURE)
+                return
+            }
+
+            val maxVolt = maxOf(voltsR, voltsY, voltsB)
+            val minVolt = minOf(voltsR, voltsY, voltsB)
+            if (maxVolt - minVolt > 35f) {
+                triggerAlarm(SafetyAlarm.PHASE_IMBALANCE)
+                return
+            }
+
+            val avgVolts = (voltsR + voltsY + voltsB) / 3f
+            if (avgVolts < 180f) {
+                triggerAlarm(SafetyAlarm.UNDER_VOLTAGE)
+                return
+            }
+            if (avgVolts > 250f) {
+                triggerAlarm(SafetyAlarm.OVER_VOLTAGE)
+                return
+            }
+
+            if (_motorState.value == MotorState.ON && (targetR > 15f || targetY > 15f || targetB > 15f)) {
+                triggerAlarm(SafetyAlarm.OVERLOAD)
+                return
+            }
         }
 
-        // 2. Phase Voltage Imbalance Check (difference > 35V)
-        val maxVolt = maxOf(voltsR, voltsY, voltsB)
-        val minVolt = minOf(voltsR, voltsY, voltsB)
-        if (maxVolt - minVolt > 35f) {
-            triggerAlarm(SafetyAlarm.PHASE_IMBALANCE)
-            return
-        }
-
-        // 3. Average Over/Undervoltage check
-        val avgVolts = (voltsR + voltsY + voltsB) / 3f
-        if (avgVolts < 180f) {
-            triggerAlarm(SafetyAlarm.UNDER_VOLTAGE)
-            return
-        }
-        if (avgVolts > 250f) {
-            triggerAlarm(SafetyAlarm.OVER_VOLTAGE)
-            return
-        }
-
-        // 4. Overload Check (Any phase current > 15A)
-        if (_motorState.value == MotorState.ON && (targetR > 15f || targetY > 15f || targetB > 15f)) {
-            triggerAlarm(SafetyAlarm.OVERLOAD)
-            return
-        }
-
-        // 5. Dry Run check (Flow < 2 L/min while motor is running)
+        // Dry Run check
         if (_motorState.value == MotorState.ON && flow < 2f) {
             dryRunTicks++
-            if (dryRunTicks >= 3) { // After 3 seconds of dry running
+            if (dryRunTicks >= 3) {
                 triggerAlarm(SafetyAlarm.DRY_RUN)
             }
         } else {
@@ -264,6 +275,14 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
         val newState = !_autoMode.value
         _autoMode.value = newState
         addLog("Automatic Mode ${if (newState) "ENABLED" else "DISABLED"}", LogSeverity.INFO)
+    }
+
+    fun setPhaseMode(mode: PhaseMode) {
+        if (_telemetry.value.phaseMode != mode) {
+            _telemetry.update { it.copy(phaseMode = mode) }
+            clearAlarms()
+            addLog("System mode switched to ${mode.label} (${mode.shortLabel})", LogSeverity.INFO)
+        }
     }
 
     fun toggleValve() {

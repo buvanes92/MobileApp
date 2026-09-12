@@ -49,7 +49,7 @@ fun AnalyticsScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- 3-Phase Voltage Chart ---
+        // --- Voltage Chart (1-Phase / 3-Phase Conditional) ---
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -65,31 +65,46 @@ fun AnalyticsScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "3-Phase Voltage Stability (V)",
+                        text = if (telemetry.phaseMode == PhaseMode.SINGLE_PHASE) "Single Phase Voltage (V)" else "3-Phase Voltage Stability (V)",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     
                     // Legend
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LegendLabel("R", Color(0xFFE53935))
-                        LegendLabel("Y", Color(0xFFFBC02D))
-                        LegendLabel("B", Color(0xFF1E88E5))
+                    if (telemetry.phaseMode == PhaseMode.THREE_PHASE) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LegendLabel("R", Color(0xFFE53935))
+                            LegendLabel("Y", Color(0xFFFBC02D))
+                            LegendLabel("B", Color(0xFF1E88E5))
+                        }
+                    } else {
+                        LegendLabel("1Ф", Color(0xFFE53935))
                     }
                 }
                 
-                // Draw custom 3-Phase Line Chart for Voltage
-                ThreePhaseLineChart(
-                    dataR = voltageRHistory,
-                    dataY = voltageYHistory,
-                    dataB = voltageBHistory,
-                    yMin = 100f,
-                    yMax = 280f,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(110.dp)
-                )
+                if (telemetry.phaseMode == PhaseMode.SINGLE_PHASE) {
+                    LineChart(
+                        data = voltageRHistory,
+                        yMin = 100f,
+                        yMax = 280f,
+                        lineColor = Color(0xFFE53935),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                    )
+                } else {
+                    ThreePhaseLineChart(
+                        dataR = voltageRHistory,
+                        dataY = voltageYHistory,
+                        dataB = voltageBHistory,
+                        yMin = 100f,
+                        yMax = 280f,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                    )
+                }
             }
         }
 

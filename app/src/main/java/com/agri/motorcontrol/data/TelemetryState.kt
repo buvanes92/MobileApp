@@ -4,13 +4,19 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
+enum class PhaseMode(val label: String, val shortLabel: String) {
+    SINGLE_PHASE("Single Phase", "1Ф"),
+    THREE_PHASE("3-Phase", "3Ф")
+}
+
 data class Telemetry(
-    val voltageR: Float = 220f,        // Red Phase Voltage
-    val voltageY: Float = 220f,        // Yellow Phase Voltage
-    val voltageB: Float = 220f,        // Blue Phase Voltage
-    val currentR: Float = 0f,          // Red Phase Current (Amps)
-    val currentY: Float = 0f,          // Yellow Phase Current (Amps)
-    val currentB: Float = 0f,          // Blue Phase Current (Amps)
+    val phaseMode: PhaseMode = PhaseMode.THREE_PHASE,
+    val voltageR: Float = 220f,        // Red Phase Voltage (or Line Voltage in 1Ф)
+    val voltageY: Float = 220f,        // Yellow Phase Voltage (3Ф only)
+    val voltageB: Float = 220f,        // Blue Phase Voltage (3Ф only)
+    val currentR: Float = 0f,          // Red Phase Current / Line Current (Amps)
+    val currentY: Float = 0f,          // Yellow Phase Current (Amps, 3Ф only)
+    val currentB: Float = 0f,          // Blue Phase Current (Amps, 3Ф only)
     val powerFactor: Float = 0.85f,    // System Power Factor (0.0 to 1.0)
     val flowRate: Float = 0f,          // in Liters per minute
     val valveOpen: Boolean = true,      // Gate Valve state (true = OPEN, false = CLOSED)

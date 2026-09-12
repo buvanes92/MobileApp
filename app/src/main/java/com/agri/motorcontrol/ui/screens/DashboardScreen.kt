@@ -64,7 +64,7 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
             ) {
                 Column {
                     Text(
-                        text = "3-Phase Irrigation Pump",
+                        text = if (telemetry.phaseMode == PhaseMode.SINGLE_PHASE) "Single Phase Pump" else "3-Phase Pump Control",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -88,14 +88,74 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                     }
                 }
 
-                // Phase indicators R-Y-B in header
+                // Phase indicators in header
+                if (telemetry.phaseMode == PhaseMode.THREE_PHASE) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PhaseIndicatorDot(label = "R", isActive = telemetry.voltageR > 120f, color = Color(0xFFE53935))
+                        PhaseIndicatorDot(label = "Y", isActive = telemetry.voltageY > 120f, color = Color(0xFFFFEB3B))
+                        PhaseIndicatorDot(label = "B", isActive = telemetry.voltageB > 120f, color = Color(0xFF1E88E5))
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(EmeraldPrimary.copy(alpha = 0.15f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "1Ф Line Active",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldPrimary
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- Mode Selector Control Bar ---
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Control Mode:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    PhaseIndicatorDot(label = "R", isActive = telemetry.voltageR > 120f, color = Color(0xFFE53935))
-                    PhaseIndicatorDot(label = "Y", isActive = telemetry.voltageY > 120f, color = Color(0xFFFFEB3B))
-                    PhaseIndicatorDot(label = "B", isActive = telemetry.voltageB > 120f, color = Color(0xFF1E88E5))
+                    PhaseModeTab(
+                        label = "Single Phase (1Ф)",
+                        isSelected = telemetry.phaseMode == PhaseMode.SINGLE_PHASE,
+                        onClick = { viewModel.setPhaseMode(PhaseMode.SINGLE_PHASE) }
+                    )
+                    PhaseModeTab(
+                        label = "3-Phase (3Ф)",
+                        isSelected = telemetry.phaseMode == PhaseMode.THREE_PHASE,
+                        onClick = { viewModel.setPhaseMode(PhaseMode.THREE_PHASE) }
+                    )
                 }
             }
         }
@@ -307,7 +367,7 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
             }
         }
 
-        // --- 3-Phase Voltage & Current Monitoring Card ---
+        // --- Power Parameters Monitoring Card (1-Phase / 3-Phase Conditional) ---
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -315,72 +375,133 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(20.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "3-Phase Power Parameters",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                // Headers
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Phase", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.weight(1f))
-                    Text("Voltage", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
-                    Text("Current", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Phase Red
-                PhaseParamRow(
-                    label = "Red (R)",
-                    voltage = telemetry.voltageR,
-                    current = telemetry.currentR,
-                    color = Color(0xFFE53935)
-                )
-
-                Divider(color = MaterialTheme.colorScheme.background, modifier = Modifier.padding(vertical = 8.dp))
-
-                // Phase Yellow
-                PhaseParamRow(
-                    label = "Yellow (Y)",
-                    voltage = telemetry.voltageY,
-                    current = telemetry.currentY,
-                    color = Color(0xFFFFEB3B)
-                )
-
-                Divider(color = MaterialTheme.colorScheme.background, modifier = Modifier.padding(vertical = 8.dp))
-
-                // Phase Blue
-                PhaseParamRow(
-                    label = "Blue (B)",
-                    voltage = telemetry.voltageB,
-                    current = telemetry.currentB,
-                    color = Color(0xFF1E88E5)
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+            if (telemetry.phaseMode == PhaseMode.SINGLE_PHASE) {
+                // Single Phase UI
+                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "System Power Factor (PF):",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                    Text(
-                        text = String.format("%.2f", telemetry.powerFactor),
-                        fontSize = 13.sp,
+                        text = "Single Phase (1Ф) Power Parameters",
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = EmeraldPrimary
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Single Phase Voltage Box
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("Line Voltage (1Ф)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "${telemetry.voltageR.roundToInt()} V",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (telemetry.voltageR in 180f..250f) EmeraldPrimary else AlertRed
+                                )
+                            }
+                        }
+
+                        // Single Phase Current Box
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("Motor Current (1Ф)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = String.format("%.1f A", telemetry.currentR),
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (telemetry.currentR > 15f) AlertRed else WaterBlue
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                // 3-Phase UI
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "3-Phase (3Ф) Power Parameters",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    // Headers
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Phase", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.weight(1f))
+                        Text("Voltage", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
+                        Text("Current", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Phase Red
+                    PhaseParamRow(
+                        label = "Red (R)",
+                        voltage = telemetry.voltageR,
+                        current = telemetry.currentR,
+                        color = Color(0xFFE53935)
+                    )
+
+                    Divider(color = MaterialTheme.colorScheme.background, modifier = Modifier.padding(vertical = 8.dp))
+
+                    // Phase Yellow
+                    PhaseParamRow(
+                        label = "Yellow (Y)",
+                        voltage = telemetry.voltageY,
+                        current = telemetry.currentY,
+                        color = Color(0xFFFFEB3B)
+                    )
+
+                    Divider(color = MaterialTheme.colorScheme.background, modifier = Modifier.padding(vertical = 8.dp))
+
+                    // Phase Blue
+                    PhaseParamRow(
+                        label = "Blue (B)",
+                        voltage = telemetry.voltageB,
+                        current = telemetry.currentB,
+                        color = Color(0xFF1E88E5)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "System Power Factor (PF):",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = String.format("%.2f", telemetry.powerFactor),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldPrimary
+                        )
+                    }
                 }
             }
         }
@@ -549,6 +670,29 @@ fun PhaseParamRow(label: String, voltage: Float, current: Float, color: Color) {
             color = if (current > 15f) AlertRed else MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.weight(1.2f),
             textAlign = TextAlign.End
+        )
+    }
+}
+
+@Composable
+fun PhaseModeTab(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isSelected) EmeraldPrimary else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         )
     }
 }
