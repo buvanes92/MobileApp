@@ -40,6 +40,8 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
     val autoMode by viewModel.autoMode.collectAsState()
     val alarm by viewModel.activeAlarm.collectAsState()
 
+    var showSettingsDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -87,76 +89,107 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
                     }
                 }
 
-                // Phase indicators in header
-                if (telemetry.phaseMode == PhaseMode.THREE_PHASE) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        PhaseIndicatorDot(label = "R", isActive = telemetry.voltageR > 120f, color = Color(0xFFE53935))
-                        PhaseIndicatorDot(label = "Y", isActive = telemetry.voltageY > 120f, color = Color(0xFFFFEB3B))
-                        PhaseIndicatorDot(label = "B", isActive = telemetry.voltageB > 120f, color = Color(0xFF1E88E5))
+                // Header indicators & Settings gear button
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (telemetry.phaseMode == PhaseMode.THREE_PHASE) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PhaseIndicatorDot(label = "R", isActive = telemetry.voltageR > 120f, color = Color(0xFFE53935))
+                            PhaseIndicatorDot(label = "Y", isActive = telemetry.voltageY > 120f, color = Color(0xFFFFEB3B))
+                            PhaseIndicatorDot(label = "B", isActive = telemetry.voltageB > 120f, color = Color(0xFF1E88E5))
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(EmeraldPrimary.copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "1Ф Line Active",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = EmeraldPrimary
+                            )
+                        }
                     }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(EmeraldPrimary.copy(alpha = 0.15f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+
+                    IconButton(
+                        onClick = { showSettingsDialog = true },
+                        modifier = Modifier.size(32.dp)
                     ) {
-                        Text(
-                            text = "1Ф Line Active",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = EmeraldPrimary
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "System Settings",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             }
         }
 
-        // --- Mode Selector Control Bar ---
+        // --- System Hardware Configuration Status Badge ---
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp),
+                .padding(bottom = 12.dp)
+                .clickable { showSettingsDialog = true },
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(14.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Control Mode:",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.background)
-                        .padding(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    PhaseModeTab(
-                        label = "Single Phase (1Ф)",
-                        isSelected = telemetry.phaseMode == PhaseMode.SINGLE_PHASE,
-                        onClick = { viewModel.setPhaseMode(PhaseMode.SINGLE_PHASE) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Configured Mode",
+                        tint = EmeraldPrimary,
+                        modifier = Modifier.size(18.dp)
                     )
-                    PhaseModeTab(
-                        label = "3-Phase (3Ф)",
-                        isSelected = telemetry.phaseMode == PhaseMode.THREE_PHASE,
-                        onClick = { viewModel.setPhaseMode(PhaseMode.THREE_PHASE) }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Hardware Mode: ",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = if (telemetry.phaseMode == PhaseMode.SINGLE_PHASE) "Single Phase (1Ф)" else "3-Phase (3Ф)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldPrimary
                     )
                 }
+
+                Text(
+                    text = "CHANGE ⚙️",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
+        }
+
+        // Render Settings Configuration Dialog Modal
+        if (showSettingsDialog) {
+            PumpSystemSettingsDialog(
+                currentMode = telemetry.phaseMode,
+                onModeSelected = { selectedMode ->
+                    viewModel.setPhaseMode(selectedMode)
+                    showSettingsDialog = false
+                },
+                onDismiss = { showSettingsDialog = false }
+            )
         }
 
         // --- Alarm Banner ---
@@ -694,4 +727,109 @@ fun PhaseModeTab(
             color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         )
     }
+}
+
+@Composable
+fun PumpSystemSettingsDialog(
+    currentMode: PhaseMode,
+    onModeSelected: (PhaseMode) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedMode by remember { mutableStateOf(currentMode) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = EmeraldPrimary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Pump System Settings", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Select your physical motor hardware installation mode:",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+
+                // Option 1: Single Phase
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { selectedMode = PhaseMode.SINGLE_PHASE },
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (selectedMode == PhaseMode.SINGLE_PHASE) EmeraldPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.background
+                    ),
+                    border = BorderStroke(1.dp, if (selectedMode == PhaseMode.SINGLE_PHASE) EmeraldPrimary else Color.Transparent),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedMode == PhaseMode.SINGLE_PHASE,
+                            onClick = { selectedMode = PhaseMode.SINGLE_PHASE },
+                            colors = RadioButtonDefaults.colors(selectedColor = EmeraldPrimary)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text("Single Phase (1Ф) Motor", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Monitors 1-line voltage & current. Ideal for smaller domestic pumps.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        }
+                    }
+                }
+
+                // Option 2: 3-Phase
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { selectedMode = PhaseMode.THREE_PHASE },
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (selectedMode == PhaseMode.THREE_PHASE) EmeraldPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.background
+                    ),
+                    border = BorderStroke(1.dp, if (selectedMode == PhaseMode.THREE_PHASE) EmeraldPrimary else Color.Transparent),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedMode == PhaseMode.THREE_PHASE,
+                            onClick = { selectedMode = PhaseMode.THREE_PHASE },
+                            colors = RadioButtonDefaults.colors(selectedColor = EmeraldPrimary)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text("3-Phase (3Ф) Motor System", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Monitors Red, Yellow & Blue lines. Single-phasing & imbalance guards active.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onModeSelected(selectedMode) },
+                colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Save Configuration", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            }
+        },
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
 }

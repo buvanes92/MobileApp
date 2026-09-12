@@ -65,6 +65,7 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
     private var simJob: Job? = null
 
     init {
+        loadConfigFromFile()
         loadLogsFromFile()
         startSimulation()
     }
@@ -280,8 +281,9 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
     fun setPhaseMode(mode: PhaseMode) {
         if (_telemetry.value.phaseMode != mode) {
             _telemetry.update { it.copy(phaseMode = mode) }
+            saveConfigToFile()
             clearAlarms()
-            addLog("System mode switched to ${mode.label} (${mode.shortLabel})", LogSeverity.INFO)
+            addLog("System hardware configured to ${mode.label} (${mode.shortLabel})", LogSeverity.INFO)
         }
     }
 
@@ -451,6 +453,36 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
                 LogEntry(message = "3-Phase Smart Pump Controller Online", severity = LogSeverity.INFO)
             )
             saveLogsToFile()
+        }
+    }
+
+    private fun saveConfigToFile() {
+        viewModelScope.launch {
+            try {
+                val jsonObject = JSONObject().apply {
+                    put("phaseMode", _telemetry.value.phaseMode.name)
+                }
+                getApplication<Application>().openFileOutput("system_config.json", android.content.Context.MODE_PRIVATE).use { output ->
+                    output.write(jsonObject.toString().toByteArray())
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun loadConfigFromFile() {
+        try {
+            val file = File(getApplication<Application>().filesDir, "system_config.json")
+            if (file.exists()) {
+                val content = file.readText()
+                val jsonObject = JSONObject(content)
+                val modeStr = jsonObject.optString("phaseMode", PhaseMode.THREE_PHASE.name)
+                val mode = PhaseMode.valueOf(modeStr)
+                _telemetry.update { it.copy(phaseMode = mode) }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }
