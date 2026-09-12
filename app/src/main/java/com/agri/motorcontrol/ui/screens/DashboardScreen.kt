@@ -134,62 +134,111 @@ fun DashboardScreen(viewModel: TelemetryViewModel, modifier: Modifier = Modifier
             }
         }
 
-        // --- System Hardware Configuration Status Badge ---
+        // --- System Hardware Configuration Options (Directly Visible) ---
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp)
-                .clickable { showSettingsDialog = true },
+                .padding(bottom = 12.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = RoundedCornerShape(14.dp)
+            shape = RoundedCornerShape(16.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
-                        contentDescription = "Configured Mode",
+                        contentDescription = "Mode Settings",
                         tint = EmeraldPrimary,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Hardware Mode: ",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                    Text(
-                        text = if (telemetry.phaseMode == PhaseMode.SINGLE_PHASE) "Single Phase (1Ф)" else "3-Phase (3Ф)",
-                        fontSize = 12.sp,
+                        text = "System Motor Configuration Mode",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = EmeraldPrimary
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
-                Text(
-                    text = "CHANGE ⚙️",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Option 1: Single Phase (1Ф)
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { viewModel.setPhaseMode(PhaseMode.SINGLE_PHASE) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (telemetry.phaseMode == PhaseMode.SINGLE_PHASE) EmeraldPrimary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.background
+                        ),
+                        border = BorderStroke(
+                            width = if (telemetry.phaseMode == PhaseMode.SINGLE_PHASE) 2.dp else 1.dp,
+                            color = if (telemetry.phaseMode == PhaseMode.SINGLE_PHASE) EmeraldPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            RadioButton(
+                                selected = telemetry.phaseMode == PhaseMode.SINGLE_PHASE,
+                                onClick = { viewModel.setPhaseMode(PhaseMode.SINGLE_PHASE) },
+                                colors = RadioButtonDefaults.colors(selectedColor = EmeraldPrimary)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "1-Phase (1Ф)",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (telemetry.phaseMode == PhaseMode.SINGLE_PHASE) EmeraldPrimary else MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
 
-        // Render Settings Configuration Dialog Modal
-        if (showSettingsDialog) {
-            PumpSystemSettingsDialog(
-                currentMode = telemetry.phaseMode,
-                onModeSelected = { selectedMode ->
-                    viewModel.setPhaseMode(selectedMode)
-                    showSettingsDialog = false
-                },
-                onDismiss = { showSettingsDialog = false }
-            )
+                    // Option 2: 3-Phase (3Ф)
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { viewModel.setPhaseMode(PhaseMode.THREE_PHASE) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (telemetry.phaseMode == PhaseMode.THREE_PHASE) EmeraldPrimary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.background
+                        ),
+                        border = BorderStroke(
+                            width = if (telemetry.phaseMode == PhaseMode.THREE_PHASE) 2.dp else 1.dp,
+                            color = if (telemetry.phaseMode == PhaseMode.THREE_PHASE) EmeraldPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            RadioButton(
+                                selected = telemetry.phaseMode == PhaseMode.THREE_PHASE,
+                                onClick = { viewModel.setPhaseMode(PhaseMode.THREE_PHASE) },
+                                colors = RadioButtonDefaults.colors(selectedColor = EmeraldPrimary)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "3-Phase (3Ф)",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (telemetry.phaseMode == PhaseMode.THREE_PHASE) EmeraldPrimary else MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         // --- Alarm Banner ---
