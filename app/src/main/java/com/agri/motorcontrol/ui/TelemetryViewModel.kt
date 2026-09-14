@@ -477,7 +477,7 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
             if (file.exists()) {
                 val content = file.readText()
                 val jsonObject = JSONObject(content)
-                val modeStr = jsonObject.optString("phaseMode", PhaseMode.THREE_PHASE.name)
+                val modeStr = jsonObject.optString("phaseMode", PhaseMode.SINGLE_PHASE.name)
                 val mode = PhaseMode.valueOf(modeStr)
                 _telemetry.update { it.copy(phaseMode = mode) }
             }

@@ -10,7 +10,7 @@ enum class PhaseMode(val label: String, val shortLabel: String) {
 }
 
 data class Telemetry(
-    val phaseMode: PhaseMode = PhaseMode.THREE_PHASE,
+    val phaseMode: PhaseMode = PhaseMode.SINGLE_PHASE,
     val voltageR: Float = 220f,        // Red Phase Voltage (or Line Voltage in 1Ф)
     val voltageY: Float = 220f,        // Yellow Phase Voltage (3Ф only)
     val voltageB: Float = 220f,        // Blue Phase Voltage (3Ф only)
